@@ -374,7 +374,7 @@ def update_table_data(cumulative_table, row, column, summary_path):
     with open(summary_path, 'r') as summary:
         lines = summary.readlines()
     
-    significance = lines[14].split()[-1]
+    significance = lines[14].split()[6] if len(lines[14].split()) == 7 else ''
         
     cumulative_table[row][column] += f' {significance}'
 
@@ -387,7 +387,10 @@ import numpy as np
 SPIDER_PATH = "Cumulative Spider.png"
 COLUMN_PATHS = ["Extrinsic Column.png", "Intrinsic Column.png", "Social Column.png"]
 
-def generate_plots(cumulative_table_csv_path, spider_path, column_paths, total_number_of_studies):
+def generate_plots(cumulative_table_csv_path, spider_path, column_paths, total_number_of_studies, intensive):
+    
+    intensive_label = '(Intensive)' if intensive else '(Extensive)'
+    
     data = []
     with open(cumulative_table_csv_path, 'r') as cumulative_table_file:
         cumulative_table_file_reader = csv.reader(cumulative_table_file)
@@ -403,7 +406,7 @@ def generate_plots(cumulative_table_csv_path, spider_path, column_paths, total_n
     
     n_values = [[float(box.split()[5][:-1]) if "NOT MENTIONED" not in box else 0 for box in data[row][1:]] for row in range(1, len(data))]
     
-    N_values = [[float(box.split()[8][:-1]) if "NOT MENTIONED" not in box else 0 for box in data[row][1:]] for row in range(1, len(data))]
+    N_values = [[int(box.split()[8][:-1]) if "NOT MENTIONED" not in box else 0 for box in data[row][1:]] for row in range(1, len(data))]
     
     #labels = [platform[0] for platform in data[1:]]
     labels = ["Open Source", "App Developers", "Wikipedia", "Crowdsourcing", "Citizen Science"]
@@ -441,7 +444,7 @@ def generate_plots(cumulative_table_csv_path, spider_path, column_paths, total_n
     ax.set_xticklabels(categories)
 
     plt.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
-    plt.title("Spider Graph")
+    plt.title(f"Spider Graph {intensive_label}")
     plt.savefig(spider_path, bbox_inches='tight')
     
     
@@ -468,13 +471,13 @@ def generate_plots(cumulative_table_csv_path, spider_path, column_paths, total_n
         plt.savefig(column_chart_path)
         
     # Generate Column Charts for each Motivational Bucket
-    generate_column_chart_with_error_bars(labels, (row[0:3] for row in values), (row[0:3] for row in standard_errors), categories[0:3], column_paths[0], "Extrinsic Motivations")
-    generate_column_chart_with_error_bars(labels, (row[3:8] for row in values), (row[3:8] for row in standard_errors), categories[3:8], column_paths[1], "Intrinsic Motivations")
-    generate_column_chart_with_error_bars(labels, (row[8:13] for row in values), (row[8:13] for row in standard_errors), categories[8:13], column_paths[2], "Social Motivations")
+    generate_column_chart_with_error_bars(labels, (row[0:3] for row in values), (row[0:3] for row in standard_errors), categories[0:3], column_paths[0], f"Extrinsic Motivations {intensive_label}")
+    generate_column_chart_with_error_bars(labels, (row[3:8] for row in values), (row[3:8] for row in standard_errors), categories[3:8], column_paths[1], f"Intrinsic Motivations {intensive_label}")
+    generate_column_chart_with_error_bars(labels, (row[8:13] for row in values), (row[8:13] for row in standard_errors), categories[8:13], column_paths[2], f"Social Motivations {intensive_label}")
     
     
     # Horizontal Bar Charts
-    def generate_horizontal_bar_charts_with_error_bars(label, val, err, categories, horizontal_bar_chart_path):
+    def generate_horizontal_bar_charts_with_error_bars(label, val, err, categories, N_value, total_studies, horizontal_bar_chart_path):
         
         colors = {
             "Monetary": "yellow",
@@ -498,13 +501,13 @@ def generate_plots(cumulative_table_csv_path, spider_path, column_paths, total_n
         sorted_indices = np.argsort(val)
         sorted_vals = [val[i] for i in sorted_indices]
         sorted_errs = [err[i] * 1.96 for i in sorted_indices]
-        sorted_categories = [categories[i] for i in sorted_indices]
-        sorted_colors = [colors.get(cat) for cat in sorted_categories]
+        sorted_categories = [f'{categories[i]} (N = {N_value[i]})' for i in sorted_indices]
+        sorted_colors = [colors.get(cat.split()[0]) for cat in sorted_categories]
 
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.barh(sorted_categories, sorted_vals, xerr=sorted_errs, align='center', color=sorted_colors, capsize=5)
         ax.set_xlabel('Values')
-        ax.set_title(label)
+        ax.set_title(f'{label} {intensive_label} (N = {total_studies})')
         
         # Create custom legend
         from matplotlib.lines import Line2D
@@ -520,8 +523,8 @@ def generate_plots(cumulative_table_csv_path, spider_path, column_paths, total_n
        
     
     # Generate Horizontal Bar Charts for each Platform
-    for val, err, label in zip(values, standard_errors, labels):     
-        generate_horizontal_bar_charts_with_error_bars(label, val, err, categories, f'{label} Bar Chart.png')
+    for val, err, label, N_value, total_studies in zip(values, standard_errors, labels, N_values, total_number_of_studies):     
+        generate_horizontal_bar_charts_with_error_bars(label, val, err, categories, N_value, total_studies, f'{label} Bar Chart.png')
 
     
     motivation_colors = [
@@ -568,7 +571,7 @@ def generate_plots(cumulative_table_csv_path, spider_path, column_paths, total_n
         ax.set_xlabel(f'Percentage of Total Number of Study Contexts (N = {int(total_number_of_studies_for_platform)})')
         ax.set_ylabel('Mean')
         ax.legend()
-        ax.set_title(f'{label} - Percentage of Total Number of Study Contexts vs Mean')
+        ax.set_title(f'{label} - Percentage of Total Number of Study Contexts vs Mean {intensive_label}')
         plt.tight_layout()
         plt.savefig(xy_plot_path)
     
@@ -678,7 +681,8 @@ def run_meta_analysis(output_directory, intensive):
         cumulative_table_csv_path = CUMULATIVE_TABLE_PATH,
         spider_path = SPIDER_PATH,
         column_paths = COLUMN_PATHS,
-        total_number_of_studies = TOTAL_NUMBER_OF_STUDIES
+        total_number_of_studies = TOTAL_NUMBER_OF_STUDIES,
+        intensive = intensive
     )
 
 
@@ -703,6 +707,7 @@ OUTPUT_DIRECTORY = r"Latest Meta Analysis"
 if __name__ == "__main__":
     
     if (not RUN_META_ANALYSIS):
-        raise Exception("Meta Analysis is not enabled")
+        print("Meta Analysis is not enabled")
     
-    main(OUTPUT_DIRECTORY)
+    else:
+        main(OUTPUT_DIRECTORY)

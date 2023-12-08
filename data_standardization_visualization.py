@@ -377,6 +377,10 @@ def update_table_data(cumulative_table, row, column, summary_path):
     significance = lines[14].split()[6] if len(lines[14].split()) == 7 else ''
         
     cumulative_table[row][column] += f' {significance}'
+    
+
+def record_total_number_of_studies(cumulative_table, platform_number, total_number_of_studies):
+    cumulative_table[platform_number + 1][0] += f' (N = {total_number_of_studies[platform_number]})'
 
 
 # Generate a Spider Graph and Column Chart
@@ -387,7 +391,11 @@ import numpy as np
 SPIDER_PATH = "Cumulative Spider.png"
 COLUMN_PATHS = ["Extrinsic Column.png", "Intrinsic Column.png", "Social Column.png"]
 
-def generate_plots(cumulative_table_csv_path, spider_path, column_paths, total_number_of_studies, intensive):
+def generate_plots(cumulative_table_csv_path, spider_path, column_paths, meta_analysis_parent_path, output_directory, intensive):
+    
+    directory_name = "Intensive" if intensive else "Extensive"
+    
+    os.chdir(f'{meta_analysis_parent_path}/{output_directory}/{directory_name}')
     
     intensive_label = '(Intensive)' if intensive else '(Extensive)'
     
@@ -407,6 +415,8 @@ def generate_plots(cumulative_table_csv_path, spider_path, column_paths, total_n
     n_values = [[float(box.split()[5][:-1]) if "NOT MENTIONED" not in box else 0 for box in data[row][1:]] for row in range(1, len(data))]
     
     N_values = [[int(box.split()[8][:-1]) if "NOT MENTIONED" not in box else 0 for box in data[row][1:]] for row in range(1, len(data))]
+    
+    total_number_of_studies = [int(re.findall(r'\d+', data[row][0])[0]) for row in range(1, len(data))]
     
     #labels = [platform[0] for platform in data[1:]]
     labels = ["Open Source", "App Developers", "Wikipedia", "Crowdsourcing", "Citizen Science"]
@@ -661,6 +671,12 @@ def run_meta_analysis(output_directory, intensive):
             r_file_path = R_FILE_PATH
         )
         
+        record_total_number_of_studies(
+            cumulative_table = CUMULATIVE_TABLE,
+            platform_number = p,
+            total_number_of_studies = TOTAL_NUMBER_OF_STUDIES
+        )
+        
         update_table_data(
             cumulative_table = CUMULATIVE_TABLE,
             row = p+1,
@@ -690,27 +706,50 @@ def run_meta_analysis(output_directory, intensive):
         cumulative_table = CUMULATIVE_TABLE,
         cumulatve_table_path = CUMULATIVE_TABLE_PATH
     )
+
+
+# Run Intensive and Extensive Meta Analyses and Generate Figures
     
+def main(output_directory):
+    
+    make_output_directory(
+        meta_analysis_parent_path = META_ANALYSIS_PARENT_PATH,
+        output_directory = output_directory
+    )
+    
+    
+    # Intensive Analysis (Likert)
+    run_meta_analysis(
+        output_directory = output_directory,
+        intensive = True
+    )
+    
+    # Extensive Analysis (Proportions, Count)
+    run_meta_analysis(
+        output_directory = output_directory,
+        intensive = False
+    )
+    
+    
+    # Generate Intensive Plots for Meta Analysis Results
     generate_plots(
         cumulative_table_csv_path = CUMULATIVE_TABLE_PATH,
         spider_path = SPIDER_PATH,
         column_paths = COLUMN_PATHS,
-        total_number_of_studies = TOTAL_NUMBER_OF_STUDIES,
-        intensive = intensive
+        meta_analysis_parent_path = META_ANALYSIS_PARENT_PATH,
+        output_directory = output_directory,
+        intensive = True
     )
-
-
-# Run Intensive and Extensive Meta Analyses
     
-def main(output_directory):
-    
-    make_output_directory(META_ANALYSIS_PARENT_PATH, output_directory)
-    
-    # Intensive Analysis (Likert)
-    run_meta_analysis(output_directory, intensive = True)
-    
-    # Extensive Analysis (Proportions, Count)
-    run_meta_analysis(output_directory, intensive = False)
+    # Generate Extensive Plots for Meta Analysis Results
+    generate_plots(
+        cumulative_table_csv_path = CUMULATIVE_TABLE_PATH,
+        spider_path = SPIDER_PATH,
+        column_paths = COLUMN_PATHS,
+        meta_analysis_parent_path = META_ANALYSIS_PARENT_PATH,
+        output_directory = output_directory,
+        intensive = False
+    )
     
     
 # Final Output

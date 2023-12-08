@@ -505,7 +505,21 @@ def generate_plots(cumulative_table_csv_path, spider_path, column_paths, total_n
         sorted_colors = [colors.get(cat.split()[0]) for cat in sorted_categories]
 
         fig, ax = plt.subplots(figsize=(10, 6))
-        ax.barh(sorted_categories, sorted_vals, xerr=sorted_errs, align='center', color=sorted_colors, capsize=5)
+        
+        # Plotting the bars
+        bars = ax.barh(sorted_categories, sorted_vals, xerr=sorted_errs, align='center', color=sorted_colors, capsize=5)
+
+        # Customizing the appearance of each tick label
+        for bar, cat in zip(bars, sorted_categories):
+            if 'Monetary' in cat:
+                bar.set_edgecolor('black')
+                bar.set_linewidth(1.5)
+
+        # Update y-axis labels
+        for label in ax.get_yticklabels():
+            if 'Monetary' in label.get_text():
+                label.set_fontweight('bold')
+        
         ax.set_xlabel('Values')
         ax.set_title(f'{label} {intensive_label} (N = {total_studies})')
         

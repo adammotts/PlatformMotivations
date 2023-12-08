@@ -516,9 +516,9 @@ def generate_plots(cumulative_table_csv_path, spider_path, column_paths, total_n
                 bar.set_linewidth(1.5)
 
         # Update y-axis labels
-        for label in ax.get_yticklabels():
-            if 'Monetary' in label.get_text():
-                label.set_fontweight('bold')
+        for y_label in ax.get_yticklabels():
+            if 'Monetary' in y_label.get_text():
+                y_label.set_fontweight('bold')
         
         ax.set_xlabel('Values')
         ax.set_title(f'{label} {intensive_label} (N = {total_studies})')
